@@ -1,73 +1,75 @@
-import { useWorkoutsContext } from '../hooks/useWorkoutsContext'
-import { useAuthContext } from '../hooks/useAuthContext'
-import { useState } from 'react'
+import { useState } from "react";
+import { useWorkoutsContext } from "../hooks/useWorkoutsContext";
+import { useAuthContext } from "../hooks/useAuthContext";
 
-// date fns
-import formatDistanceToNow from 'date-fns/formatDistanceToNow'
+function WorkoutDetails({ workout }) {
+    const { dispatch } = useWorkoutsContext();
+    const { user } = useAuthContext();
+    const [isEditing, setIsEditing] = useState(false);
+    const [updatedWorkout, setUpdatedWorkout] = useState({
+        title: workout.title,
+        load: workout.load,
+        reps: workout.reps,
+    });
 
-const WorkoutDetails = ({ workout }) => {
-  const { dispatch } = useWorkoutsContext()
-  const { user } = useAuthContext()
-  const [error, setError] = useState (null) // Add error state for showing errors to the user
+    const handleDelete = async () => {
+        if (!user) return;
 
-  const handleClick = async () => {
-    if (!user) {
-      setError('You must be logged in to delete a workout.')
-      return
-    }
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/workouts/${workout._id}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${user.token}` },
+        });
 
-    try {
-      const response = await fetch('/api/workouts/' + workout._id, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${user.token}`
+        if (response.ok) {
+            const json = await response.json();
+            dispatch({ type: "DELETE_WORKOUT", payload: json });
         }
-      })
+    };
 
-      // Check if response is empty (e.g., 204 No Content)
-      if (response.status === 204) {
-        // Handle empty response, workout is deleted
-        dispatch({ type: 'DELETE_WORKOUT', payload: workout })
-        return
-      }
+    const handleUpdate = async (e) => {
+        e.preventDefault();
 
-      // Handle responses with a body (usually JSON)
-      if (!response.ok) {
-        const json = await response.json()
-        setError(json.error || 'Error deleting workout') // Display error message if any
-        console.error('Error deleting workout:', json.error)
-        return
-      }
+        const response = await fetch(`${process.env.REACT_APP_API_URL}/api/workouts/${workout._id}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${user.token}`,
+            },
+            body: JSON.stringify(updatedWorkout),
+        });
 
-      // If response is successful, delete the workout from the state
-      const json = await response.json()
-      dispatch({ type: 'DELETE_WORKOUT', payload: json })
+        if (response.ok) {
+            const json = await response.json();
+            dispatch({ type: "UPDATE_WORKOUT", payload: json });
+            setIsEditing(false);
+        }
+    };
 
-    } catch (err) {
-      // Catch any errors like network issues or invalid JSON response
-      setError(`Failed to delete workout: ${err.message || 'Unknown error'}`)
-      console.error('Failed to delete workout:', err)
-    }
-  }
-
-  // Check if workout.createdAt is a valid date string
-  const createdAtDate = new Date(workout.createdAt)
-  const isValidDate = !isNaN(createdAtDate.getTime())
-
-  return (
-    <div className="workout-details">
-      <h4>{workout.title}</h4>
-      <p><strong>Load (kg): </strong>{workout.load}</p>
-      <p><strong>Reps: </strong>{workout.reps}</p>
-      {/* Only format and display the date if it's valid */}
-      <p>{isValidDate ? formatDistanceToNow(createdAtDate, { addSuffix: true }) : 'Invalid date'}</p>
-      
-      {/* Show the error if it exists */}
-      {error && <div className="error">{error}</div>}
-      
-      <span className="material-symbols-outlined" onClick={handleClick}>delete</span>
-    </div>
-  )
+    return (
+        <div className="workout-details">
+            {isEditing ? (
+                <form onSubmit={handleUpdate}>
+                    <input type="text" value={updatedWorkout.title} onChange={(e) => setUpdatedWorkout({ ...updatedWorkout, title: e.target.value })} />
+                    <input type="number" value={updatedWorkout.load} onChange={(e) => setUpdatedWorkout({ ...updatedWorkout, load: e.target.value })} />
+                    <input type="number" value={updatedWorkout.reps} onChange={(e) => setUpdatedWorkout({ ...updatedWorkout, reps: e.target.value })} />
+                    <button type="submit">Update</button>
+                    <button type="button" onClick={() => setIsEditing(false)}>Cancel</button>
+                </form>
+            ) : (
+                <>
+                    <h4>{workout.title}</h4>
+                    <p><strong>Load (kg):</strong> {workout.load}</p>
+                    <p><strong>Reps:</strong> {workout.reps}</p>
+                    
+                    {/* Updated buttons */}
+                    <div className="action-buttons">
+                        <span className="material-symbols-outlined delete-btn" onClick={handleDelete}>delete</span>
+                        <span className="material-symbols-outlined edit-btn" onClick={() => setIsEditing(true)}>edit</span>
+                    </div>
+                </>
+            )}
+        </div>
+    );
 }
 
-export default WorkoutDetails
+export default WorkoutDetails;
