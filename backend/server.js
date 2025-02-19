@@ -1,21 +1,16 @@
-require('dotenv').config()
+// server.js - Main Backend Entry
+const express = require("express");
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+const cors = require("cors");
+const authRoutes = require("./routes/authRoutes");
+const recipeRoutes = require("./routes/recipeRoutes");
 
-const express = require('express')
-const mongoose = require('mongoose')
-const workoutRoutes = require('./routes/workouts')
-const userRoutes = require('./routes/user')
+dotenv.config();
 
-// express app
-const app = express()
-
-// middleware
-app.use(express.json())
-
-app.use((req, res, next) => {
-  console.log(req.path, req.method)
-  next()
-})
-
+const app = express();
+app.use(express.json());
+app.use(cors());
 // routes
 app.use('/api/workouts', workoutRoutes)
 app.use('/api/user', userRoutes)
